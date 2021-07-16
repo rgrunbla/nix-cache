@@ -3,7 +3,9 @@ use regex::Regex;
 use reqwest;
 use std::process::Command;
 use warp::{
-     http::Uri, Filter,
+     http::Uri,
+     Filter,
+     path::FullPath
 };
 
 fn extract_store_path(input: &str) -> Option<&str> {
@@ -24,8 +26,7 @@ fn is_narinfo(input: &str) -> bool {
 pub async fn get_store_path(path: String) -> Result<impl warp::Reply, warp::Rejection> {
     match is_narinfo(&path) {
         true => { 
-            println!("{}", path);
-            let res = reqwest::get(format!("https://cache.nixos.org/{}", path))
+            let res = reqwest::get(format!("https://cache.nixos.org{}", path))
                 .await
                 .unwrap();
             let body = res.text().await.unwrap();
@@ -42,11 +43,11 @@ pub async fn get_store_path(path: String) -> Result<impl warp::Reply, warp::Reje
         }
         _ => {}
     }
-   Ok(warp::redirect::see_other(format!("https://cache.nixos.org/{}", path).parse::<Uri>().unwrap()))
+   Ok(warp::redirect::see_other(format!("https://cache.nixos.org{}", path).parse::<Uri>().unwrap()))
 }
 
 fn redirect_and_download() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!(String).and_then(|path| get_store_path(path))
+    warp::path::full().and_then(|path: FullPath| get_store_path(path.as_str().to_string()))
 }
 
 #[tokio::main]
